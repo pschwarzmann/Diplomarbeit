@@ -11,13 +11,30 @@ CREATE TABLE users (
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('schueler', 'trainer') NOT NULL,
+    role ENUM('schueler', 'trainer', 'admin') NOT NULL DEFAULT 'schueler',
     name VARCHAR(100) NOT NULL,
     school VARCHAR(100),
     belt_level VARCHAR(50),
+    verified_trainer TINYINT(1) DEFAULT 0,
     join_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Benutzerrechte-Tabelle
+CREATE TABLE permissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    `key` VARCHAR(100) UNIQUE NOT NULL,
+    label VARCHAR(150) NOT NULL
+);
+
+-- Zuordnung Benutzer <-> Rechte
+CREATE TABLE user_permissions (
+    user_id INT NOT NULL,
+    permission_id INT NOT NULL,
+    PRIMARY KEY (user_id, permission_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
 );
 
 -- Urkunden-Tabelle
@@ -129,10 +146,28 @@ CREATE INDEX idx_sessions_token ON sessions(token);
 CREATE INDEX idx_sessions_expires ON sessions(expires_at);
 
 -- Beispiel-Daten (optional)
-INSERT INTO users (username, email, password_hash, role, name, school, belt_level) VALUES
-('max.mueller', 'max.mueller@example.com', '$2y$10$dummyhash', 'trainer', 'Max Müller', 'Kampfsport Akademie Berlin', 'Schwarzgurt 3. Dan'),
-('anna.weber', 'anna.weber@example.com', '$2y$10$dummyhash', 'trainer', 'Anna Weber', 'Kampfsport Akademie Berlin', 'Schwarzgurt 2. Dan'),
-('hans.schmidt', 'hans.schmidt@example.com', '$2y$10$dummyhash', 'trainer', 'Hans Schmidt', 'Kampfsport Akademie Berlin', 'Schwarzgurt 1. Dan');
+INSERT INTO users (username, email, password_hash, role, name, school, belt_level, verified_trainer) VALUES
+('admin', 'admin@fightlog.com', '$2y$10$dummyhash', 'admin', 'Admin Trainer', 'Kampfsport Akademie Berlin', 'Schwarzgurt 5. Dan - Meister', 1),
+('trainer', 'trainer@fightlog.com', '$2y$10$dummyhash', 'trainer', 'Tom Trainer', 'Kampfsport Akademie Berlin', 'Schwarzgurt 2. Dan', 1),
+('schueler', 'schueler@fightlog.com', '$2y$10$dummyhash', 'schueler', 'Sam Schüler', 'Kampfsport Akademie Berlin', 'Gelbgurt', 0);
+
+-- Basisrechte
+INSERT INTO permissions (`key`, label) VALUES
+('manage_users', 'Benutzer verwalten'),
+('view_all_data', 'Alle Daten einsehen'),
+('manage_certificates', 'Urkunden verwalten'),
+('approve_certificates', 'Urkunden freigeben'),
+('manage_exams', 'Prüfungen verwalten'),
+('edit_training_history', 'Trainingsverlauf bearbeiten');
+
+-- Rechte-Zuordnung (Demo)
+-- Admin: alle Rechte
+INSERT INTO user_permissions (user_id, permission_id)
+SELECT 1 as user_id, id FROM permissions;
+
+-- Trainer: ausgewählte Rechte
+INSERT INTO user_permissions (user_id, permission_id)
+SELECT 2 as user_id, id FROM permissions WHERE `key` IN ('manage_certificates','manage_exams','edit_training_history');
 
 INSERT INTO special_courses (title, instructor, date, duration, max_participants, price, description) VALUES
 ('Selbstverteidigung für Frauen', 'Anna Weber', '2024-04-15', '4 Stunden', 12, '45€', 'Spezieller Kurs für effektive Selbstverteidigung'),

@@ -15,6 +15,7 @@ const translations = {
         role: "Rolle",
         student: "Schüler",
         trainer: "Trainer",
+        admin: "Admin",
         stayLoggedIn: "Angemeldet bleiben",
         dashboard: "Dashboard",
         certificates: "Urkunden",
@@ -22,6 +23,15 @@ const translations = {
         trainingHistory: "Trainingsverlauf",
         exams: "Prüfungen",
         goals: "Ziele",
+        adminPanel: "Admin",
+        users: "Benutzer",
+        permissions: "Berechtigungen",
+        verifyTrainer: "Als Trainer verifizieren",
+        makeTrainer: "Zu Trainer machen",
+        makeStudent: "Zu Schüler machen",
+        addUser: "Benutzer hinzufügen",
+        saveChanges: "Änderungen speichern",
+        search: "Suchen",
         logout: "Abmelden",
         welcome: "Willkommen bei FightLog",
         subtitle: "Erfasse und verwalte deine Kampfsporterfolge",
@@ -102,8 +112,44 @@ const demoData = {
         name: "Admin Trainer",
         school: "Kampfsport Akademie Berlin",
         beltLevel: "Schwarzgurt 5. Dan - Meister",
-        permissions: ["manage_users", "manage_certificates", "manage_exams", "view_all_data"]
+        permissions: ["manage_users", "manage_certificates", "manage_exams", "view_all_data", "approve_certificates", "edit_training_history"],
+        verifiedTrainer: true
     },
+    users: [
+        {
+            id: 1,
+            username: "admin",
+            email: "admin@fightlog.com",
+            role: "admin",
+            name: "Admin Trainer",
+            school: "Kampfsport Akademie Berlin",
+            beltLevel: "Schwarzgurt 5. Dan - Meister",
+            permissions: ["manage_users", "manage_certificates", "manage_exams", "view_all_data", "approve_certificates", "edit_training_history"],
+            verifiedTrainer: true
+        },
+        {
+            id: 2,
+            username: "trainer",
+            email: "trainer@fightlog.com",
+            role: "trainer",
+            name: "Tom Trainer",
+            school: "Kampfsport Akademie Berlin",
+            beltLevel: "Schwarzgurt 2. Dan",
+            permissions: ["manage_certificates", "manage_exams", "edit_training_history"],
+            verifiedTrainer: true
+        },
+        {
+            id: 3,
+            username: "schueler",
+            email: "schueler@fightlog.com",
+            role: "schueler",
+            name: "Sam Schüler",
+            school: "Kampfsport Akademie Berlin",
+            beltLevel: "Gelbgurt",
+            permissions: [],
+            verifiedTrainer: false
+        }
+    ],
     certificates: [
         {
             id: 1,
@@ -230,15 +276,24 @@ const apiService = {
     // Backend-Entwickler: Hier echte API-Calls einfügen
     async login(credentials) {
         console.log('API Call: Login', credentials);
-        // Simuliere API-Call
+        const { username, password } = credentials;
         return new Promise((resolve) => {
             setTimeout(() => {
-                resolve({
-                    success: true,
-                    user: demoData.user,
-                    token: 'dummy-token-123'
-                });
-            }, 500);
+                let matchedUser = null;
+                if (username === 'admin' && password === 'admin123') {
+                    matchedUser = demoData.users.find(u => u.username === 'admin');
+                } else if (username === 'trainer' && password === 'trainer123') {
+                    matchedUser = demoData.users.find(u => u.username === 'trainer');
+                } else if (username === 'schueler' && password === 'schueler123') {
+                    matchedUser = demoData.users.find(u => u.username === 'schueler');
+                }
+
+                if (matchedUser) {
+                    resolve({ success: true, user: matchedUser, token: 'dummy-token-123' });
+                } else {
+                    resolve({ success: false, error: 'Ungültige Anmeldedaten' });
+                }
+            }, 400);
         });
     },
 
@@ -350,6 +405,45 @@ const apiService = {
                     goal: newGoal
                 });
             }, 500);
+        });
+    },
+
+    async getUsers() {
+        console.log('API Call: Get Users');
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                // Tiefkopie, damit UI-Änderungen nicht direkt auf demoData zeigen
+                resolve(demoData.users.map(u => ({ ...u, permissions: [...u.permissions] })));
+            }, 300);
+        });
+    },
+
+    async updateUser(updatedUser) {
+        console.log('API Call: Update User', updatedUser);
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const idx = demoData.users.findIndex(u => u.id === updatedUser.id);
+                if (idx !== -1) {
+                    demoData.users[idx] = { ...demoData.users[idx], ...updatedUser, permissions: [...updatedUser.permissions] };
+                    resolve({ success: true, user: demoData.users[idx] });
+                } else {
+                    resolve({ success: false, error: 'User not found' });
+                }
+            }, 300);
+        });
+    },
+
+    async verifyAsTrainer(userId) {
+        console.log('API Call: Verify as Trainer', userId);
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const user = demoData.users.find(u => u.id === userId);
+                if (!user) return resolve({ success: false, error: 'User not found' });
+                user.role = 'trainer';
+                user.verifiedTrainer = true;
+                if (!user.permissions.includes('manage_exams')) user.permissions.push('manage_exams');
+                resolve({ success: true, user: { ...user } });
+            }, 300);
         });
     }
 };
@@ -501,6 +595,12 @@ const app = createApp({
                                     <h3>{{ t('goals') }}</h3>
                                     <p>Protokoll und Ziele verwalten</p>
                                 </div>
+
+                <div v-if="currentUser && currentUser.role === 'admin'" class="nav-card" @click="navigateTo('admin')">
+                    <i class="fas fa-user-shield"></i>
+                    <h3>{{ t('adminPanel') }}</h3>
+                    <p>Benutzer, Rollen & Rechte verwalten</p>
+                </div>
                             </div>
                         </div>
                     </div>
@@ -870,6 +970,67 @@ const app = createApp({
                         </div>
                     </div>
                 </div>
+
+                <!-- Admin-Bereich -->
+                <div v-else-if="currentPage === 'admin'">
+                    <div style="padding: 2rem 0;">
+                        <div class="container">
+                            <div class="page-header">
+                                <button @click="goToDashboard" class="back-btn">
+                                    <i class="fas fa-arrow-left"></i>
+                                    Zurück
+                                </button>
+                                <h1>{{ t('adminPanel') }}</h1>
+                            </div>
+
+                            <div class="form-container">
+                                <h2>{{ t('users') }}</h2>
+                                <div class="form-group">
+                                    <label>{{ t('search') }}</label>
+                                    <input type="text" v-model="adminSearch" class="form-control" placeholder="Benutzer suchen (Name, Benutzername, E-Mail)">
+                                </div>
+
+                                <div class="certificates-grid" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
+                                    <div v-for="user in adminFilteredUsers" :key="user.id" class="nav-card" style="text-align: left;">
+                                        <h3 style="display:flex; align-items:center; gap:.5rem;">
+                                            <i class="fas" :class="user.role === 'admin' ? 'fa-user-shield' : (user.role === 'trainer' ? 'fa-chalkboard-teacher' : 'fa-user')"></i>
+                                            {{ user.name }}
+                                        </h3>
+                                        <p><strong>Benutzername:</strong> {{ user.username }}</p>
+                                        <p><strong>E-Mail:</strong> {{ user.email }}</p>
+                                        <p>
+                                            <strong>Rolle:</strong>
+                                            <select v-model="user.role" class="form-control" style="margin-top:.25rem;">
+                                                <option value="schueler">Schüler</option>
+                                                <option value="trainer">Trainer</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </p>
+                                        <p>
+                                            <strong>Verifiziert (Trainer):</strong>
+                                            <span :class="user.verifiedTrainer ? 'status-approved' : 'status-pending'">{{ user.verifiedTrainer ? 'Ja' : 'Nein' }}</span>
+                                            <button v-if="!user.verifiedTrainer" class="btn btn-secondary" style="width:auto; margin-left:.5rem;" @click="verifyUserAsTrainer(user)">{{ t('verifyTrainer') }}</button>
+                                        </p>
+
+                                        <div style="margin-top: .5rem;">
+                                            <strong>{{ t('permissions') }}:</strong>
+                                            <div style="display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:.25rem; margin-top:.5rem;">
+                                                <label v-for="perm in adminPermissionsList" :key="perm.key" style="display:flex; gap:.5rem; align-items:center; font-size:.9rem;">
+                                                    <input type="checkbox" :checked="user.permissions.includes(perm.key)" @change="togglePermission(user, perm.key)">
+                                                    {{ perm.label }}
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div style="margin-top: 1rem; display:flex; gap:.5rem;">
+                                            <button class="btn btn-primary" style="width:auto;" @click="saveUser(user)">{{ t('saveChanges') }}</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </main>
         </div>
     `,
@@ -931,6 +1092,18 @@ const app = createApp({
             trainingHistory: [],
             specialCourses: [],
             goals: []
+            ,
+            // Admin
+            adminUserList: [],
+            adminSearch: '',
+            adminPermissionsList: [
+                { key: 'manage_users', label: 'Benutzer verwalten' },
+                { key: 'view_all_data', label: 'Alle Daten einsehen' },
+                { key: 'manage_certificates', label: 'Urkunden verwalten' },
+                { key: 'approve_certificates', label: 'Urkunden freigeben' },
+                { key: 'manage_exams', label: 'Prüfungen verwalten' },
+                { key: 'edit_training_history', label: 'Trainingsverlauf bearbeiten' }
+            ]
         }
     },
     
@@ -940,6 +1113,15 @@ const app = createApp({
             return (key) => {
                 return translations[this.currentLanguage][key] || key;
             }
+        },
+        adminFilteredUsers() {
+            const q = (this.adminSearch || '').toLowerCase().trim();
+            if (!q) return this.adminUserList;
+            return this.adminUserList.filter(u =>
+                (u.username || '').toLowerCase().includes(q) ||
+                (u.email || '').toLowerCase().includes(q) ||
+                (u.name || '').toLowerCase().includes(q)
+            );
         }
     },
     
@@ -973,6 +1155,8 @@ const app = createApp({
                         role: '',
                         stayLoggedIn: false
                     };
+                } else {
+                    alert(response.error || 'Login fehlgeschlagen');
                 }
             } catch (error) {
                 console.error('Login error:', error);
@@ -1127,6 +1311,52 @@ const app = createApp({
             }
         },
         
+        // Admin
+        async loadUsers() {
+            try {
+                const users = await apiService.getUsers();
+                this.adminUserList = users;
+            } catch (error) {
+                console.error('Load users error:', error);
+            }
+        },
+        togglePermission(user, permKey) {
+            const has = user.permissions.includes(permKey);
+            if (has) {
+                user.permissions = user.permissions.filter(p => p !== permKey);
+            } else {
+                user.permissions = [...user.permissions, permKey];
+            }
+        },
+        async verifyUserAsTrainer(user) {
+            try {
+                const res = await apiService.verifyAsTrainer(user.id);
+                if (res.success) {
+                    const idx = this.adminUserList.findIndex(u => u.id === user.id);
+                    if (idx !== -1) this.adminUserList[idx] = res.user;
+                    alert('Benutzer wurde als Trainer verifiziert.');
+                } else {
+                    alert('Verifizierung fehlgeschlagen');
+                }
+            } catch (e) {
+                console.error('Verify trainer error:', e);
+                alert('Verifizierung fehlgeschlagen');
+            }
+        },
+        async saveUser(user) {
+            try {
+                const res = await apiService.updateUser(user);
+                if (res.success) {
+                    alert('Benutzer gespeichert.');
+                } else {
+                    alert('Speichern fehlgeschlagen');
+                }
+            } catch (e) {
+                console.error('Save user error:', e);
+                alert('Speichern fehlgeschlagen');
+            }
+        },
+        
         // Daten laden
         async loadPageData() {
             switch (this.currentPage) {
@@ -1152,6 +1382,9 @@ const app = createApp({
                     } catch (error) {
                         console.error('Load special courses error:', error);
                     }
+                    break;
+                case 'admin':
+                    await this.loadUsers();
                     break;
             }
         }
