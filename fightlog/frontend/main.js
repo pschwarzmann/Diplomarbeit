@@ -56,7 +56,22 @@ const translations = {
         clearFilter: "Filter löschen",
         save: "Speichern",
         cancel: "Abbrechen",
-        submit: "Absenden"
+        submit: "Absenden",
+        courses: "Kurse",
+        addCourse: "Kurs eintragen",
+        courseTitle: "Kurstitel",
+        courseDate: "Datum",
+        courseInstructor: "Trainer/Leiter",
+        courseDescription: "Beschreibung",
+        courseStatus: "Status",
+        approved: "freigegeben",
+        pendingLower: "ausstehend",
+        phone: "Telefonnummer",
+        passkeys: "Passkeys",
+        addPasskey: "Passkey hinzufügen",
+        remove: "Entfernen",
+        emailInvalid: "Bitte eine gültige E-Mail eingeben.",
+        phoneInvalid: "Bitte eine gültige Telefonnummer eingeben."
     },
     en: {
         login: "Login",
@@ -98,7 +113,22 @@ const translations = {
         clearFilter: "Clear Filter",
         save: "Save",
         cancel: "Cancel",
-        submit: "Submit"
+        submit: "Submit",
+        courses: "Courses",
+        addCourse: "Add Course",
+        courseTitle: "Course Title",
+        courseDate: "Date",
+        courseInstructor: "Instructor",
+        courseDescription: "Description",
+        courseStatus: "Status",
+        approved: "approved",
+        pendingLower: "pending",
+        phone: "Phone number",
+        passkeys: "Passkeys",
+        addPasskey: "Add passkey",
+        remove: "Remove",
+        emailInvalid: "Please enter a valid email.",
+        phoneInvalid: "Please enter a valid phone number."
     }
 };
 
@@ -125,7 +155,9 @@ const demoData = {
             school: "Kampfsport Akademie Berlin",
             beltLevel: "Schwarzgurt 5. Dan - Meister",
             permissions: ["manage_users", "manage_certificates", "manage_exams", "view_all_data", "approve_certificates", "edit_training_history"],
-            verifiedTrainer: true
+            verifiedTrainer: true,
+            phone: "+49 30 1234567",
+            passkeys: ["YubiKey-Admin", "Phone-Admin"]
         },
         {
             id: 2,
@@ -136,7 +168,9 @@ const demoData = {
             school: "Kampfsport Akademie Berlin",
             beltLevel: "Schwarzgurt 2. Dan",
             permissions: ["manage_certificates", "manage_exams", "edit_training_history"],
-            verifiedTrainer: true
+            verifiedTrainer: true,
+            phone: "+49 30 2345678",
+            passkeys: ["Phone-Trainer"]
         },
         {
             id: 3,
@@ -147,7 +181,9 @@ const demoData = {
             school: "Kampfsport Akademie Berlin",
             beltLevel: "Gelbgurt",
             permissions: [],
-            verifiedTrainer: false
+            verifiedTrainer: false,
+            phone: "+49 30 3456789",
+            passkeys: []
         }
     ],
     certificates: [
@@ -267,6 +303,26 @@ const demoData = {
             progress: 40,
             category: "Wettkampf",
             status: "in_progress"
+        }
+    ],
+    courses: [
+        {
+            id: 101,
+            title: "Grundlagen Sparring",
+            date: "2024-04-02",
+            instructor: "Hans Schmidt",
+            description: "Technik und leichtes Sparring",
+            status: "approved",
+            userId: 2
+        },
+        {
+            id: 102,
+            title: "Kata Intensiv",
+            date: "2024-04-05",
+            instructor: "Anna Weber",
+            description: "Kata-Feinschliff",
+            status: "pending",
+            userId: 3
         }
     ]
 };
@@ -445,6 +501,51 @@ const apiService = {
                 resolve({ success: true, user: { ...user } });
             }, 300);
         });
+    },
+
+    async getCourses() {
+        console.log('API Call: Get Courses');
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve(demoData.courses);
+            }, 300);
+        });
+    },
+
+    async addCourse(courseData) {
+        console.log('API Call: Add Course', courseData);
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const newCourse = { id: Date.now(), ...courseData };
+                demoData.courses.unshift(newCourse);
+                resolve({ success: true, course: newCourse });
+            }, 400);
+        });
+    },
+
+    async updateCourse(courseData) {
+        console.log('API Call: Update Course', courseData);
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const idx = demoData.courses.findIndex(c => c.id === courseData.id);
+                if (idx !== -1) {
+                    demoData.courses[idx] = { ...demoData.courses[idx], ...courseData };
+                    resolve({ success: true, course: demoData.courses[idx] });
+                } else {
+                    resolve({ success: false });
+                }
+            }, 300);
+        });
+    },
+
+    async deleteCourse(courseId) {
+        console.log('API Call: Delete Course', courseId);
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                demoData.courses = demoData.courses.filter(c => c.id !== courseId);
+                resolve({ success: true });
+            }, 300);
+        });
     }
 };
 
@@ -500,6 +601,19 @@ const app = createApp({
                                         v-model="authForm.email" 
                                         class="form-control" 
                                         required
+                                        @blur="validateEmail"
+                                    >
+                                </div>
+                                
+                                <div v-if="showRegister" class="form-group">
+                                    <label for="phone">{{ t('phone') }}</label>
+                                    <input 
+                                        type="tel" 
+                                        id="phone" 
+                                        v-model="authForm.phone" 
+                                        class="form-control" 
+                                        required
+                                        @blur="validatePhone"
                                     >
                                 </div>
                                 
@@ -523,34 +637,32 @@ const app = createApp({
                                     </div>
                                 </div>
                                 
-                                <div v-if="showRegister" class="form-group">
-                                    <label for="role">{{ t('role') }}</label>
-                                    <select id="role" v-model="authForm.role" class="form-control" required>
-                                        <option value="">{{ t('role') }}</option>
-                                        <option value="schueler">{{ t('student') }}</option>
-                                        <option value="trainer">{{ t('trainer') }}</option>
-                                    </select>
-                                </div>
+                                <!-- Rolle wird bei Registrierung automatisch auf Schüler gesetzt; kein Dropdown sichtbar -->
                                 
                                 <div class="form-group">
-                                    <label>
-                                        <input 
-                                            type="checkbox" 
-                                            v-model="authForm.stayLoggedIn"
+                                    <div class="toggle-row">
+                                        <button 
+                                            type="button" 
+                                            class="toggle" 
+                                            :class="{ active: authForm.stayLoggedIn }" 
+                                            @click="authForm.stayLoggedIn = !authForm.stayLoggedIn" 
+                                            :aria-pressed="authForm.stayLoggedIn.toString()"
                                         >
-                                        {{ t('stayLoggedIn') }}
-                                    </label>
+                                            <span class="toggle-knob"></span>
+                                        </button>
+                                        <span class="toggle-label">{{ t('stayLoggedIn') }}</span>
+                                    </div>
                                 </div>
                                 
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="btn btn-primary" style="width:100%; border-radius:12px;">
                                     {{ showRegister ? t('register') : t('login') }}
                                 </button>
                             </form>
                             
                             <p style="text-align: center; margin-top: 1rem;">
-                                <a href="#" @click.prevent="showRegister = !showRegister">
+                                <button type="button" class="btn btn-secondary" style="width:100%; border-radius:12px;" @click.prevent="showRegister = !showRegister">
                                     {{ showRegister ? t('login') : t('register') }}
-                                </a>
+                                </button>
                             </p>
                         </div>
                     </div>
@@ -569,19 +681,7 @@ const app = createApp({
                                 <div class="nav-card" @click="navigateTo('certificates')">
                                     <i class="fas fa-certificate"></i>
                                     <h3>{{ t('certificates') }}</h3>
-                                    <p>Urkunden anzeigen und hochladen</p>
-                                </div>
-                                
-                                <div class="nav-card" @click="navigateTo('specialCourses')">
-                                    <i class="fas fa-graduation-cap"></i>
-                                    <h3>{{ t('specialCourses') }}</h3>
-                                    <p>Sonderkurse ansehen und buchen</p>
-                                </div>
-                                
-                                <div class="nav-card" @click="navigateTo('trainingHistory')">
-                                    <i class="fas fa-history"></i>
-                                    <h3>{{ t('trainingHistory') }}</h3>
-                                    <p>Trainingsverlauf einsehen</p>
+                                    <p>Urkunden verwalten</p>
                                 </div>
                                 
                                 <div class="nav-card" @click="navigateTo('exams')">
@@ -590,10 +690,16 @@ const app = createApp({
                                     <p>Prüfungsergebnisse & Bewertungen</p>
                                 </div>
                                 
-                                <div class="nav-card" @click="navigateTo('goals')">
+                                <div v-if="currentUser && currentUser.role !== 'admin'" class="nav-card" @click="navigateTo('goals')">
                                     <i class="fas fa-bullseye"></i>
                                     <h3>{{ t('goals') }}</h3>
                                     <p>Protokoll und Ziele verwalten</p>
+                                </div>
+
+                                <div class="nav-card" @click="navigateTo('courses')">
+                                    <i class="fas fa-list-check"></i>
+                                    <h3>{{ t('courses') }}</h3>
+                                    <p>Kurse verwalten/sehen</p>
                                 </div>
 
                 <div v-if="currentUser && currentUser.role === 'admin'" class="nav-card" @click="navigateTo('admin')">
@@ -618,92 +724,125 @@ const app = createApp({
                                  <h1>{{ t('certificates') }}</h1>
                              </div>
                             
-                            <!-- Upload Formular -->
-                            <div class="form-container">
-                                <h2>{{ t('uploadCertificate') }}</h2>
-                                
-                                <form @submit.prevent="uploadCertificate">
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>{{ t('certificateTitle') }}</label>
-                                            <input type="text" v-model="certificateForm.title" class="form-control" required>
-                                        </div>
-                                        
-                                        <div class="form-group">
-                                            <label>{{ t('certificateType') }}</label>
-                                            <select v-model="certificateForm.type" class="form-control" required>
-                                                <option value="">{{ t('certificateType') }}</option>
-                                                <option value="belt_exam">Gürtelprüfung</option>
-                                                <option value="tournament">Turnier</option>
-                                                <option value="workshop">Workshop</option>
-                                                <option value="special_course">Sonderkurs</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>{{ t('certificateDate') }}</label>
-                                            <input type="date" v-model="certificateForm.date" class="form-control" required>
-                                        </div>
-                                        
-                                        <div class="form-group">
-                                            <label>{{ t('certificateLevel') }}</label>
-                                            <select v-model="certificateForm.level" class="form-control" required>
-                                                <option value="">{{ t('certificateLevel') }}</option>
-                                                <option value="Weißgurt">Weißgurt</option>
-                                                <option value="Gelbgurt">Gelbgurt</option>
-                                                <option value="Orangegurt">Orangegurt</option>
-                                                <option value="Grüngurt">Grüngurt</option>
-                                                <option value="Blaugurt">Blaugurt</option>
-                                                <option value="Braungurt">Braungurt</option>
-                                                <option value="Schwarzgurt">Schwarzgurt</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label>{{ t('certificateInstructor') }}</label>
-                                        <input type="text" v-model="certificateForm.instructor" class="form-control" required>
-                                    </div>
-                                    
-                                    <div class="form-group">
-                                        <label>{{ t('uploadFile') }}</label>
-                                        <div 
-                                            class="upload-area" 
-                                            @click="triggerFileInput"
-                                            @dragover.prevent="handleDragOver"
-                                            @dragleave.prevent="handleDragLeave"
-                                            @drop.prevent="handleDrop"
-                                            :class="{ dragover: isDragOver }"
-                                        >
-                                            <div class="upload-icon">
-                                                <i class="fas fa-cloud-upload-alt"></i>
+                            <!-- Admin/Trainer: Upload + Suche/Bearbeiten -->
+                            <div v-if="currentUser && (currentUser.role === 'admin' || currentUser.role === 'trainer')">
+                                <div class="form-container">
+                                    <h2>{{ t('uploadCertificate') }}</h2>
+                                    <form @submit.prevent="uploadCertificate">
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label>{{ t('certificateTitle') }}</label>
+                                                <input type="text" v-model="certificateForm.title" class="form-control" required>
                                             </div>
-                                            <p>{{ t('dragDropText') }}</p>
-                                            <p style="font-size: 0.9rem; color: #6b7280;">
-                                                {{ t('supportedFormats') }}
-                                            </p>
+                                            
+                                            <div class="form-group">
+                                                <label>{{ t('certificateType') }}</label>
+                                                <select v-model="certificateForm.type" class="form-control" required>
+                                                    <option value="">{{ t('certificateType') }}</option>
+                                                    <option value="belt_exam">Gürtelprüfung</option>
+                                                    <option value="tournament">Turnier</option>
+                                                    <option value="workshop">Workshop</option>
+                                                </select>
+                                            </div>
                                         </div>
-                                        <input 
-                                            type="file" 
-                                            ref="fileInput" 
-                                            @change="handleFileSelect" 
-                                            accept=".pdf,.jpg,.jpeg,.png"
-                                            style="display: none;"
-                                        >
+                                        
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label>{{ t('certificateDate') }}</label>
+                                                <input type="date" v-model="certificateForm.date" class="form-control" required>
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <label>{{ t('certificateLevel') }}</label>
+                                                <select v-model="certificateForm.level" class="form-control" required>
+                                                    <option value="">{{ t('certificateLevel') }}</option>
+                                                    <option value="Weißgurt">Weißgurt</option>
+                                                    <option value="Gelbgurt">Gelbgurt</option>
+                                                    <option value="Orangegurt">Orangegurt</option>
+                                                    <option value="Grüngurt">Grüngurt</option>
+                                                    <option value="Blaugurt">Blaugurt</option>
+                                                    <option value="Braungurt">Braungurt</option>
+                                                    <option value="Schwarzgurt">Schwarzgurt</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="form-group">
+                                            <label>{{ t('certificateInstructor') }}</label>
+                                            <input type="text" v-model="certificateForm.instructor" class="form-control" required>
+                                        </div>
+                                        
+                                        <div class="form-group">
+                                            <label>{{ t('uploadFile') }}</label>
+                                            <div 
+                                                class="upload-area" 
+                                                @click="triggerFileInput"
+                                                @dragover.prevent="handleDragOver"
+                                                @dragleave.prevent="handleDragLeave"
+                                                @drop.prevent="handleDrop"
+                                                :class="{ dragover: isDragOver }"
+                                            >
+                                                <div class="upload-icon">
+                                                    <i class="fas fa-cloud-upload-alt"></i>
+                                                </div>
+                                                <p>{{ t('dragDropText') }}</p>
+                                                <p style="font-size: 0.9rem; color: #6b7280;">
+                                                    {{ t('supportedFormats') }}
+                                                </p>
+                                            </div>
+                                            <input 
+                                                type="file" 
+                                                ref="fileInput" 
+                                                @change="handleFileSelect" 
+                                                accept=".pdf,.jpg,.jpeg,.png"
+                                                style="display: none;"
+                                            >
+                                        </div>
+                                        
+                                        <button type="submit" class="btn btn-primary">
+                                            {{ t('uploadCertificate') }}
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <div class="form-container">
+                                    <h2>{{ t('filter') }}</h2>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>{{ t('search') }}</label>
+                                            <input type="text" v-model="certificateSearch" class="form-control" placeholder="Titel/Trainer/Level">
+                                        </div>
+                                        <div class="form-group" style="align-self: end;">
+                                            <button class="btn btn-secondary" @click="clearCertificateSearch">{{ t('clearFilter') }}</button>
+                                        </div>
                                     </div>
-                                    
-                                    <button type="submit" class="btn btn-primary">
-                                        {{ t('uploadCertificate') }}
-                                    </button>
-                                </form>
+                                    <div class="certificates-grid">
+                                        <div 
+                                            v-for="cert in filteredCertificates" 
+                                            :key="cert.id" 
+                                            class="certificate-card"
+                                        >
+                                            <div class="certificate-preview">
+                                                {{ cert.preview }}
+                                            </div>
+                                            <h4>{{ cert.title }}</h4>
+                                            <p>{{ cert.level }}</p>
+                                            <p>{{ cert.date }}</p>
+                                            <p>{{ cert.instructor }}</p>
+                                            <div style="margin-top: 0.5rem; display:flex; gap:.5rem; align-items:center;">
+                                                <span :class="'status-' + cert.status">{{ cert.status }}</span>
+                                                <button class="btn btn-secondary" style="width:auto;" @click="editCertificate(cert)"><i class="fas fa-pen"></i></button>
+                                                <button class="btn btn-secondary" style="width:auto;" @click="deleteCertificate(cert)"><i class="fas fa-trash"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            
-                            <!-- Urkunden Grid -->
-                            <div class="certificates-grid">
+
+                            <!-- Schüler: nur eigene Urkunden -->
+                            <div v-else class="certificates-grid">
                                 <div 
-                                    v-for="cert in certificates" 
+                                    v-for="cert in ownCertificates" 
                                     :key="cert.id" 
                                     class="certificate-card"
                                 >
@@ -723,77 +862,6 @@ const app = createApp({
                     </div>
                 </div>
                 
-                                 <!-- Sonderkurse -->
-                 <div v-else-if="currentPage === 'specialCourses'">
-                     <div style="padding: 2rem 0;">
-                         <div class="container">
-                             <div class="page-header">
-                                 <button @click="goToDashboard" class="back-btn">
-                                     <i class="fas fa-arrow-left"></i>
-                                     Zurück
-                                 </button>
-                                 <h1>{{ t('specialCourses') }}</h1>
-                             </div>
-                            
-                            <div class="nav-grid">
-                                <div 
-                                    v-for="course in specialCourses" 
-                                    :key="course.id" 
-                                    class="nav-card"
-                                    style="text-align: left;"
-                                >
-                                    <h3>{{ course.title }}</h3>
-                                    <p><strong>Trainer:</strong> {{ course.instructor }}</p>
-                                    <p><strong>Datum:</strong> {{ course.date }}</p>
-                                    <p><strong>Dauer:</strong> {{ course.duration }}</p>
-                                    <p><strong>Preis:</strong> {{ course.price }}</p>
-                                    <p>{{ course.description }}</p>
-                                    <p><strong>Teilnehmer:</strong> {{ course.currentParticipants }}/{{ course.maxParticipants }}</p>
-                                    
-                                    <button 
-                                        class="btn btn-primary" 
-                                        style="margin-top: 1rem;"
-                                        :disabled="course.currentParticipants >= course.maxParticipants"
-                                    >
-                                        {{ course.currentParticipants >= course.maxParticipants ? 'Ausgebucht' : 'Buchen' }}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                                 <!-- Trainingsverlauf -->
-                 <div v-else-if="currentPage === 'trainingHistory'">
-                     <div style="padding: 2rem 0;">
-                         <div class="container">
-                             <div class="page-header">
-                                 <button @click="goToDashboard" class="back-btn">
-                                     <i class="fas fa-arrow-left"></i>
-                                     Zurück
-                                 </button>
-                                 <h1>{{ t('trainingHistory') }}</h1>
-                             </div>
-                            
-                            <div class="timeline">
-                                <div 
-                                    v-for="session in trainingHistory" 
-                                    :key="session.id" 
-                                    class="timeline-item"
-                                >
-                                    <div class="timeline-content">
-                                        <h4>{{ session.type }}</h4>
-                                        <p><strong>Datum:</strong> {{ session.date }}</p>
-                                        <p><strong>Dauer:</strong> {{ session.duration }} Minuten</p>
-                                        <p><strong>Trainer:</strong> {{ session.instructor }}</p>
-                                        <p><strong>Fokus:</strong> {{ session.focus }}</p>
-                                        <p v-if="session.notes"><strong>Notizen:</strong> {{ session.notes }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                 
                                  <!-- Prüfungen -->
                  <div v-else-if="currentPage === 'exams'">
@@ -807,10 +875,9 @@ const app = createApp({
                                  <h1>{{ t('exams') }}</h1>
                              </div>
                             
-                            <!-- Prüfungseintrag Formular -->
-                            <div class="form-container">
+                            <!-- Admin/Trainer: Prüfung eintragen + filtern/bearbeiten; Schüler: nur eigene sehen -->
+                            <div v-if="currentUser && (currentUser.role === 'admin' || currentUser.role === 'trainer')" class="form-container">
                                 <h2>{{ t('examEntry') }}</h2>
-                                
                                 <form @submit.prevent="addExam">
                                     <div class="form-row">
                                         <div class="form-group">
@@ -861,24 +928,48 @@ const app = createApp({
                                         <textarea v-model="examForm.comments" class="form-control" rows="4"></textarea>
                                     </div>
                                     
-                                    <button type="submit" class="btn btn-primary">
-                                        {{ t('submit') }}
-                                    </button>
+                                    <button type="submit" class="btn btn-primary">{{ t('submit') }}</button>
                                 </form>
                             </div>
-                            
-                            <!-- Prüfungsverlauf -->
-                            <div class="timeline">
-                                <div v-for="exam in exams" :key="exam.id" class="timeline-item">
-                                    <div class="timeline-content">
-                                        <h4>{{ exam.level }} - {{ exam.category }}</h4>
-                                        <p><strong>Datum:</strong> {{ exam.date }}</p>
-                                        <p><strong>Bewertung:</strong> {{ exam.score }}/100</p>
-                                        <p><strong>Prüfer:</strong> {{ exam.instructor }}</p>
-                                        <p><strong>Status:</strong> 
-                                            <span :class="'status-' + exam.status">{{ exam.status }}</span>
-                                        </p>
-                                        <p v-if="exam.comments"><strong>Kommentare:</strong> {{ exam.comments }}</p>
+                            <div v-if="currentUser && (currentUser.role === 'admin' || currentUser.role === 'trainer')" class="form-container">
+                                <h2>{{ t('filter') }}</h2>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>{{ t('search') }}</label>
+                                        <input type="text" v-model="examSearch" class="form-control" placeholder="Level/Prüfer/Kategorie">
+                                    </div>
+                                    <div class="form-group" style="align-self:end;">
+                                        <button class="btn btn-secondary" @click="clearExamSearch">{{ t('clearFilter') }}</button>
+                                    </div>
+                                </div>
+                                <div class="timeline">
+                                    <div v-for="exam in filteredExams" :key="exam.id" class="timeline-item">
+                                        <div class="timeline-content">
+                                            <h4>{{ exam.level }} - {{ exam.category }}</h4>
+                                            <p><strong>Datum:</strong> {{ exam.date }}</p>
+                                            <p><strong>Bewertung:</strong> {{ exam.score }}/100</p>
+                                            <p><strong>Prüfer:</strong> {{ exam.instructor }}</p>
+                                            <p><strong>Status:</strong> <span :class="'status-' + exam.status">{{ exam.status }}</span></p>
+                                            <p v-if="exam.comments"><strong>Kommentare:</strong> {{ exam.comments }}</p>
+                                            <div style="margin-top:.5rem; display:flex; gap:.5rem;">
+                                                <button class="btn btn-secondary" style="width:auto;" @click="editExam(exam)"><i class="fas fa-pen"></i></button>
+                                                <button class="btn btn-secondary" style="width:auto;" @click="deleteExam(exam)"><i class="fas fa-trash"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else>
+                                <div class="timeline">
+                                    <div v-for="exam in ownExams" :key="exam.id" class="timeline-item">
+                                        <div class="timeline-content">
+                                            <h4>{{ exam.level }} - {{ exam.category }}</h4>
+                                            <p><strong>Datum:</strong> {{ exam.date }}</p>
+                                            <p><strong>Bewertung:</strong> {{ exam.score }}/100</p>
+                                            <p><strong>Prüfer:</strong> {{ exam.instructor }}</p>
+                                            <p><strong>Status:</strong> <span :class="'status-' + exam.status">{{ exam.status }}</span></p>
+                                            <p v-if="exam.comments"><strong>Kommentare:</strong> {{ exam.comments }}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -971,8 +1062,96 @@ const app = createApp({
                     </div>
                 </div>
 
+                <!-- Kurse -->
+                <div v-else-if="currentPage === 'courses'">
+                    <div style="padding: 2rem 0;">
+                        <div class="container">
+                            <div class="page-header">
+                                <button @click="goToDashboard" class="back-btn">
+                                    <i class="fas fa-arrow-left"></i>
+                                    Zurück
+                                </button>
+                                <h1>{{ t('courses') }}</h1>
+                            </div>
+
+                            <div v-if="currentUser && (currentUser.role === 'admin' || currentUser.role === 'trainer')">
+                                <div class="form-container">
+                                    <h2>{{ t('addCourse') }}</h2>
+                                    <form @submit.prevent="submitCourse">
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label>{{ t('courseTitle') }}</label>
+                                                <input type="text" v-model="courseForm.title" class="form-control" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>{{ t('courseDate') }}</label>
+                                                <input type="date" v-model="courseForm.date" class="form-control" required>
+                                            </div>
+                                        </div>
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label>{{ t('courseInstructor') }}</label>
+                                                <input type="text" v-model="courseForm.instructor" class="form-control" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>{{ t('courseStatus') }}</label>
+                                                <select v-model="courseForm.status" class="form-control" required>
+                                                    <option value="approved">{{ t('approved') }}</option>
+                                                    <option value="pending">{{ t('pendingLower') }}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>{{ t('courseDescription') }}</label>
+                                            <textarea v-model="courseForm.description" class="form-control" rows="3"></textarea>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">{{ t('addCourse') }}</button>
+                                    </form>
+                                </div>
+
+                                <div class="form-container">
+                                    <h2>{{ t('filter') }}</h2>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>{{ t('search') }}</label>
+                                            <input type="text" v-model="courseSearch" class="form-control" placeholder="Titel/Trainer/Beschreibung">
+                                        </div>
+                                        <div class="form-group" style="align-self:end;">
+                                            <button class="btn btn-secondary" @click="clearCourseSearch">{{ t('clearFilter') }}</button>
+                                        </div>
+                                    </div>
+                                    <div class="certificates-grid" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
+                                        <div v-for="c in filteredCourses" :key="c.id" class="certificate-card" style="text-align:left;">
+                                            <h4>{{ c.title }}</h4>
+                                            <p><strong>{{ t('courseDate') }}:</strong> {{ c.date }}</p>
+                                            <p><strong>{{ t('courseInstructor') }}:</strong> {{ c.instructor }}</p>
+                                            <p v-if="c.description">{{ c.description }}</p>
+                                            <p><strong>{{ t('courseStatus') }}:</strong> <span :class="c.status === 'approved' ? 'status-approved' : 'status-pending'">{{ c.status }}</span></p>
+                                            <div style="margin-top:.5rem; display:flex; gap:.5rem;">
+                                                <button class="btn btn-secondary" style="width:auto;" @click="editCourse(c)"><i class="fas fa-pen"></i></button>
+                                                <button class="btn btn-secondary" style="width:auto;" @click="removeCourse(c)"><i class="fas fa-trash"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-else>
+                                <div class="certificates-grid" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
+                                    <div v-for="c in studentApprovedCourses" :key="c.id" class="certificate-card" style="text-align:left;">
+                                        <h4>{{ c.title }}</h4>
+                                        <p><strong>{{ t('courseDate') }}:</strong> {{ c.date }}</p>
+                                        <p><strong>{{ t('courseInstructor') }}:</strong> {{ c.instructor }}</p>
+                                        <p v-if="c.description">{{ c.description }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Admin-Bereich -->
-                <div v-else-if="currentPage === 'admin'">
+                <div v-else-if="currentPage === 'admin' && currentUser && currentUser.role === 'admin'">
                     <div style="padding: 2rem 0;">
                         <div class="container">
                             <div class="page-header">
@@ -998,6 +1177,21 @@ const app = createApp({
                                         </h3>
                                         <p><strong>Benutzername:</strong> {{ user.username }}</p>
                                         <p><strong>E-Mail:</strong> {{ user.email }}</p>
+                                        <p><strong>{{ t('phone') }}:</strong> {{ user.phone || '-' }}</p>
+                                        <p>
+                                            <strong>{{ t('passkeys') }}:</strong>
+                                            <span v-if="!(user.passkeys && user.passkeys.length)" style="color:#64748b;">—</span>
+                                            <ul v-else style="margin:.25rem 0 0 .9rem; padding:0; list-style:disc;">
+                                                <li v-for="pk in user.passkeys" :key="pk" style="display:flex; align-items:center; gap:.5rem;">
+                                                    <span>{{ pk }}</span>
+                                                    <button class="btn btn-secondary" style="width:auto; padding:.25rem .5rem;" @click="removePasskey(user, pk)">{{ t('remove') }}</button>
+                                                </li>
+                                            </ul>
+                                            <div style="margin-top:.5rem; display:flex; gap:.5rem;">
+                                                <input type="text" v-model="user._newPasskey" class="form-control" placeholder="Neuer Passkey" style="flex:1;">
+                                                <button class="btn btn-secondary" style="width:auto;" @click="addPasskey(user)">{{ t('addPasskey') }}</button>
+                                            </div>
+                                        </p>
                                         <p>
                                             <strong>Rolle:</strong>
                                             <select v-model="user.role" class="form-control" style="margin-top:.25rem;">
@@ -1022,8 +1216,9 @@ const app = createApp({
                                             </div>
                                         </div>
 
-                                        <div style="margin-top: 1rem; display:flex; gap:.5rem;">
-                                            <button class="btn btn-primary" style="width:auto;" @click="saveUser(user)">{{ t('saveChanges') }}</button>
+                                        <div style="margin-top: 1rem; display:flex; gap:.75rem;">
+                                            <button class="btn btn-primary" style="width:auto; padding: .75rem 1.25rem;" @click="saveUser(user)">{{ t('saveChanges') }}</button>
+                                            <button class="btn btn-secondary" style="width:auto; padding: .75rem 1.25rem;" @click="deleteUser(user)"><i class="fas fa-trash"></i></button>
                                         </div>
                                     </div>
                                 </div>
@@ -1054,8 +1249,9 @@ const app = createApp({
                 username: '',
                 email: '',
                 password: '',
-                role: '',
-                stayLoggedIn: false
+                role: 'schueler',
+                stayLoggedIn: false,
+                phone: ''
             },
             
             certificateForm: {
@@ -1091,7 +1287,8 @@ const app = createApp({
             exams: [],
             trainingHistory: [],
             specialCourses: [],
-            goals: []
+            goals: [],
+            courses: []
             ,
             // Admin
             adminUserList: [],
@@ -1103,7 +1300,23 @@ const app = createApp({
                 { key: 'approve_certificates', label: 'Urkunden freigeben' },
                 { key: 'manage_exams', label: 'Prüfungen verwalten' },
                 { key: 'edit_training_history', label: 'Trainingsverlauf bearbeiten' }
-            ]
+            ],
+            // Suche/Filter
+            certificateSearch: '',
+            examSearch: '',
+            // Kurse
+            courseForm: {
+                title: '',
+                date: '',
+                instructor: '',
+                description: '',
+                status: 'approved',
+                userId: null
+            },
+            courseSearch: '',
+            // Validierung
+            emailError: false,
+            phoneError: false
         }
     },
     
@@ -1122,6 +1335,45 @@ const app = createApp({
                 (u.email || '').toLowerCase().includes(q) ||
                 (u.name || '').toLowerCase().includes(q)
             );
+        },
+        filteredCertificates() {
+            const q = (this.certificateSearch || '').toLowerCase().trim();
+            if (!q) return this.certificates;
+            return this.certificates.filter(c =>
+                (c.title || '').toLowerCase().includes(q) ||
+                (c.instructor || '').toLowerCase().includes(q) ||
+                (c.level || '').toLowerCase().includes(q)
+            );
+        },
+        ownCertificates() {
+            // Platzhalter: Filter auf eigene; aktuell keine user_id an Zertifikaten in Demo
+            return this.certificates;
+        },
+        filteredExams() {
+            const q = (this.examSearch || '').toLowerCase().trim();
+            if (!q) return this.exams;
+            return this.exams.filter(e =>
+                (e.level || '').toLowerCase().includes(q) ||
+                (e.instructor || '').toLowerCase().includes(q) ||
+                (e.category || '').toLowerCase().includes(q)
+            );
+        },
+        ownExams() {
+            // Platzhalter: Filter auf eigene; aktuell keine user_id an Prüfungen in Demo
+            return this.exams;
+        },
+        filteredCourses() {
+            const q = (this.courseSearch || '').toLowerCase().trim();
+            if (!q) return this.courses;
+            return this.courses.filter(c =>
+                (c.title || '').toLowerCase().includes(q) ||
+                (c.instructor || '').toLowerCase().includes(q) ||
+                (c.description || '').toLowerCase().includes(q)
+            );
+        },
+        studentApprovedCourses() {
+            // Nur freigegebene eigene Kurse (Platzhalter: userId = currentUser.id, wenn vorhanden)
+            return this.courses.filter(c => c.status === 'approved');
         }
     },
     
@@ -1153,7 +1405,8 @@ const app = createApp({
                         email: '',
                         password: '',
                         role: '',
-                        stayLoggedIn: false
+                        stayLoggedIn: false,
+                        phone: '' // Zurücksetzen des Telefonfelds
                     };
                 } else {
                     alert(response.error || 'Login fehlgeschlagen');
@@ -1166,7 +1419,11 @@ const app = createApp({
         
         async handleRegister() {
             try {
-                const response = await apiService.register(this.authForm);
+                if (!this.validateEmail() || !this.validatePhone()) {
+                    return alert(this.validateEmail() ? this.t('phoneInvalid') : this.t('emailInvalid'));
+                }
+                const payload = { ...this.authForm, role: 'schueler' };
+                const response = await apiService.register(payload);
                 if (response.success) {
                     alert('Registrierung erfolgreich! Sie können sich jetzt anmelden.');
                     this.showRegister = false;
@@ -1174,8 +1431,9 @@ const app = createApp({
                         username: '',
                         email: '',
                         password: '',
-                        role: '',
-                        stayLoggedIn: false
+                        role: 'schueler',
+                        stayLoggedIn: false,
+                        phone: ''
                     };
                 }
             } catch (error) {
@@ -1282,6 +1540,28 @@ const app = createApp({
                 console.error('Load exams error:', error);
             }
         },
+        clearCertificateSearch() {
+            this.certificateSearch = '';
+        },
+        clearExamSearch() {
+            this.examSearch = '';
+        },
+        editCertificate(cert) {
+            alert('Bearbeiten (Platzhalter): ' + cert.title);
+        },
+        deleteCertificate(cert) {
+            if (confirm('Diese Urkunde löschen?')) {
+                this.certificates = this.certificates.filter(c => c.id !== cert.id);
+            }
+        },
+        editExam(exam) {
+            alert('Bearbeiten (Platzhalter): ' + exam.level + ' - ' + exam.category);
+        },
+        deleteExam(exam) {
+            if (confirm('Diesen Prüfungseintrag löschen?')) {
+                this.exams = this.exams.filter(e => e.id !== exam.id);
+            }
+        },
         
         // Ziele
         async addGoal() {
@@ -1356,6 +1636,24 @@ const app = createApp({
                 alert('Speichern fehlgeschlagen');
             }
         },
+        addPasskey(user) {
+            const key = (user._newPasskey || '').trim();
+            if (!key) return;
+            const current = Array.isArray(user.passkeys) ? user.passkeys : [];
+            if (current.includes(key)) return alert('Passkey existiert bereits.');
+            user.passkeys = [...current, key];
+            user._newPasskey = '';
+        },
+        removePasskey(user, key) {
+            const current = Array.isArray(user.passkeys) ? user.passkeys : [];
+            user.passkeys = current.filter(k => k !== key);
+        },
+        async deleteUser(user) {
+            if (!confirm('Benutzer wirklich löschen?')) return;
+            // Platzhalter: entfernt den Benutzer lokal aus der Liste
+            this.adminUserList = this.adminUserList.filter(u => u.id !== user.id);
+            alert('Benutzer gelöscht (Platzhalter).');
+        },
         
         // Daten laden
         async loadPageData() {
@@ -1383,10 +1681,65 @@ const app = createApp({
                         console.error('Load special courses error:', error);
                     }
                     break;
+                case 'courses':
+                    await this.loadCourses();
+                    break;
                 case 'admin':
                     await this.loadUsers();
                     break;
             }
+        },
+        async loadCourses() {
+            try {
+                this.courses = await apiService.getCourses();
+            } catch (e) {
+                console.error('Load courses error:', e);
+            }
+        },
+        clearCourseSearch() {
+            this.courseSearch = '';
+        },
+        async submitCourse() {
+            try {
+                const payload = { ...this.courseForm, userId: this.currentUser?.id || null };
+                const res = await apiService.addCourse(payload);
+                if (res.success) {
+                    alert('Kurs eingetragen.');
+                    this.courseForm = { title: '', date: '', instructor: '', description: '', status: 'approved', userId: null };
+                    await this.loadCourses();
+                }
+            } catch (e) {
+                console.error('Add course error:', e);
+                alert('Kurs konnte nicht eingetragen werden.');
+            }
+        },
+        async editCourse(course) {
+            const newTitle = prompt('Titel bearbeiten:', course.title);
+            if (newTitle == null) return;
+            const updated = { ...course, title: newTitle };
+            const res = await apiService.updateCourse(updated);
+            if (res.success) {
+                await this.loadCourses();
+            }
+        },
+        async removeCourse(course) {
+            if (!confirm('Diesen Kurs löschen?')) return;
+            const res = await apiService.deleteCourse(course.id);
+            if (res.success) {
+                this.courses = this.courses.filter(c => c.id !== course.id);
+            }
+        },
+
+        // Validierung
+        validateEmail() {
+            const email = (this.authForm.email || '').trim();
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+            return re.test(email);
+        },
+        validatePhone() {
+            const phone = (this.authForm.phone || '').trim();
+            const re = /^\+?[0-9 ()\-]{7,20}$/;
+            return re.test(phone);
         }
     },
     

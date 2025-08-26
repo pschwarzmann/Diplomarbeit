@@ -320,6 +320,22 @@ body {
     white-space: nowrap;
 }
 
+/* Touch-Optimierung: größere Touchziele */
+@media (pointer: coarse) {
+    .btn {
+        padding: 0.9rem 1.75rem;
+        min-height: 44px;
+        min-width: 44px;
+    }
+    .form-control {
+        padding: 0.9rem 1.1rem;
+        min-height: 44px;
+    }
+    .back-btn {
+        padding: 0.9rem 1.1rem;
+    }
+}
+
 .btn-primary {
     background: linear-gradient(135deg, #3b82f6, #1d4ed8);
     color: white;
@@ -348,6 +364,49 @@ body {
 .btn-secondary:hover {
     background: #e2e8f0;
     color: #1e293b;
+}
+
+/* Toggle (Stay Logged In) */
+.toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.toggle {
+    width: 52px;
+    height: 30px;
+    border-radius: 9999px;
+    background: #e5e7eb;
+    border: 2px solid #e5e7eb;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.toggle .toggle-knob {
+    width: 24px;
+    height: 24px;
+    background: #fff;
+    border-radius: 9999px;
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    transition: transform 0.2s ease, background 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+
+.toggle.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.toggle.active .toggle-knob {
+    transform: translateX(22px);
+}
+
+.toggle-label {
+    user-select: none;
+    color: #374151;
 }
 
 /* Password Field */
@@ -406,6 +465,13 @@ body {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.5rem;
     margin-top: 2rem;
+}
+
+/* Größere klickbare Bereiche auf Touch */
+.nav-card,
+.certificate-card,
+.timeline-item {
+    -webkit-tap-highlight-color: transparent;
 }
 
 .certificate-card {
@@ -616,7 +682,8 @@ body {
 /* Focus Styles */
 .btn:focus,
 .form-control:focus,
-.nav-card:focus {
+.nav-card:focus,
+.toggle:focus {
     outline: 2px solid #3b82f6;
     outline-offset: 2px;
 }
