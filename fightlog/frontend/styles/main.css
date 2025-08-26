@@ -51,6 +51,7 @@ body {
 .logo::before {
     content: "🥋";
     font-size: 1.8rem;
+    filter: saturate(120%);
 }
 
 .user-info {
@@ -85,6 +86,7 @@ body {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     backdrop-filter: blur(10px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border-radius: 9999px;
 }
 
 .back-btn:hover {
@@ -285,6 +287,9 @@ body {
     background: white;
     color: #1e293b;
     transform: scale(1);
+    border-radius: 14px;
+    border: 1.5px solid var(--border);
+    background: rgba(255,255,255,0.9);
 }
 
 .form-control:focus {
@@ -292,6 +297,8 @@ body {
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     transform: scale(1.01);
+    border-color: var(--ios-blue);
+    box-shadow: 0 0 0 4px rgba(10,132,255,0.15);
 }
 
 .form-control:hover {
@@ -318,6 +325,8 @@ body {
     transition: all 0.2s;
     text-decoration: none;
     white-space: nowrap;
+    border-radius: 9999px;
+    font-weight: 600;
 }
 
 /* Touch-Optimierung: größere Touchziele */
@@ -342,12 +351,16 @@ body {
     box-shadow: 0 4px 6px rgba(59, 130, 246, 0.25);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     transform: scale(1);
+    background: var(--ios-blue);
+    box-shadow: 0 10px 20px rgba(10,132,255,0.25);
 }
 
 .btn-primary:hover {
     background: linear-gradient(135deg, #2563eb, #1e40af);
     transform: scale(1.02) translateY(-1px);
     box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
+    background: #007aff;
+    box-shadow: 0 14px 28px rgba(10,132,255,0.28);
 }
 
 .btn-primary:active {
@@ -359,11 +372,14 @@ body {
     background: #f1f5f9;
     color: #374151;
     border: 1px solid #e2e8f0;
+    background: rgba(142,142,147,0.12);
+    border: 1px solid rgba(142,142,147,0.2);
 }
 
 .btn-secondary:hover {
     background: #e2e8f0;
     color: #1e293b;
+    background: rgba(142,142,147,0.18);
 }
 
 /* Toggle (Stay Logged In) */
@@ -381,6 +397,10 @@ body {
     border: 2px solid #e5e7eb;
     position: relative;
     transition: all 0.2s;
+    width: 54px;
+    height: 32px;
+    background: rgba(142,142,147,0.28);
+    border: none;
 }
 
 .toggle .toggle-knob {
@@ -393,11 +413,16 @@ body {
     left: 1px;
     transition: transform 0.2s ease, background 0.2s ease;
     box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    width: 28px;
+    height: 28px;
+    top: 2px;
+    left: 2px;
 }
 
 .toggle.active {
     background: #3b82f6;
     border-color: #3b82f6;
+    background: var(--ios-green);
 }
 
 .toggle.active .toggle-knob {
@@ -587,6 +612,8 @@ body {
     border-radius: 20px;
     font-size: 0.8rem;
     font-weight: 500;
+    background: rgba(52,199,89,0.15);
+    color: #1f7a3a;
 }
 
 .status-pending {
@@ -596,6 +623,8 @@ body {
     border-radius: 20px;
     font-size: 0.8rem;
     font-weight: 500;
+    background: rgba(255,204,0,0.18);
+    color: #8a6d00;
 }
 
 .status-passed {
@@ -701,4 +730,116 @@ body {
         background: #000;
         color: #fff;
     }
+} 
+
+/* ===== iOS Look Tweaks ===== */
+:root {
+    --ios-blue: #0a84ff;
+    --ios-green: #34c759;
+    --ios-gray: #8e8e93;
+    --card-bg: rgba(255,255,255,0.9);
+    --border: rgba(0,0,0,0.08);
+}
+
+.header {
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--border);
+}
+
+.auth-card,
+.form-container,
+.nav-card,
+.timeline-content,
+.certificate-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+.btn {
+    border-radius: 9999px;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background: var(--ios-blue);
+    box-shadow: 0 10px 20px rgba(10,132,255,0.25);
+}
+
+.btn-primary:hover {
+    background: #007aff;
+    box-shadow: 0 14px 28px rgba(10,132,255,0.28);
+}
+
+.btn-secondary {
+    background: rgba(142,142,147,0.12);
+    border: 1px solid rgba(142,142,147,0.2);
+}
+
+.btn-secondary:hover {
+    background: rgba(142,142,147,0.18);
+}
+
+.form-control {
+    border-radius: 14px;
+    border: 1.5px solid var(--border);
+    background: rgba(255,255,255,0.9);
+}
+
+.form-control:focus {
+    border-color: var(--ios-blue);
+    box-shadow: 0 0 0 4px rgba(10,132,255,0.15);
+}
+
+.toggle {
+    width: 54px;
+    height: 32px;
+    background: rgba(142,142,147,0.28);
+    border: none;
+}
+
+.toggle .toggle-knob {
+    width: 28px;
+    height: 28px;
+    top: 2px;
+    left: 2px;
+}
+
+.toggle.active {
+    background: var(--ios-green);
+}
+
+.toggle.active .toggle-knob {
+    transform: translateX(22px);
+}
+
+.logo::before {
+    filter: saturate(120%);
+}
+
+.nav-card::before {
+    background: linear-gradient(90deg, var(--ios-blue), #5e5ce6, #64d2ff);
+}
+
+.status-approved {
+    background: rgba(52,199,89,0.15);
+    color: #1f7a3a;
+}
+
+.status-pending {
+    background: rgba(255,204,0,0.18);
+    color: #8a6d00;
+}
+
+.back-btn {
+    border-radius: 9999px;
+}
+
+/* Leichtere Hover-Effekte für iOS-Gefühl */
+.nav-card:hover,
+.certificate-card:hover,
+.timeline-content:hover {
+    transform: translateY(-1px) scale(1.01);
 } 
